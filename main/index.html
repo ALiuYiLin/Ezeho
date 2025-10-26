@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>主应用</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; margin: 40px; }
+    h1 { margin-bottom: 16px; }
+    .apps a { display: inline-block; margin-right: 16px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; text-decoration: none; color: #222; }
+    .apps a:hover { background: #f5f5f5; }
+  </style>
+</head>
+<body>
+  <h1>主应用</h1>
+  <p>选择一个子应用：</p>
+  <div class="apps">
+    <a href="/app1">子应用一</a>
+    <a href="/app2">子应用二</a>
+  </div>
+  <script>
+     (function () {
+       const routes = {
+         '/app1': () => mountHtml('/subApps/app1/index.html'),
+         '/app2': () => mountHtml('/subApps/app2/index.html'),
+       };
+ 
+       let container = null;
+ 
+       function ensureContainer() {
+         if (!container) {
+           container = document.createElement('div');
+           container.id = 'micro-container';
+           container.style.cssText = 'position:relative;margin-top:24px;border:1px solid #eee;border-radius:8px;min-height:60vh;padding:16px;';
+           document.body.appendChild(container);
+         }
+       }
+ 
+       function clearContainer() {
+         if (container) {
+           container.remove();
+           container = null;
+         }
+       }
+ 
+       async function mountHtml(src) {
+         ensureContainer();
+        //  container.innerHTML = '加载中…';
+         try {
+           const res = await fetch(src, { credentials: 'same-origin' });
+           if (!res.ok) throw new Error('HTTP ' + res.status);
+           const html = await res.text();
+ 
+           const doc = new DOMParser().parseFromString(html, 'text/html');
+ 
+           // 注入样式资源（link/style）到主文档
+           const head = doc.head;
+           if (head) {
+             head.querySelectorAll('link[rel="stylesheet"]').forEach(link => {
+               const href = new URL(link.getAttribute('href'), src).toString();
+               if (!document.querySelector(`link[rel="stylesheet"][href="${href}"]`)) {
+                 const l = document.createElement('link');
+                 l.rel = 'stylesheet';
+                 l.href = href;
+                 document.head.appendChild(l);
+               }
+             });
+             head.querySelectorAll('style').forEach(style => {
+               const s = document.createElement('style');
+               s.textContent = style.textContent;
+               document.head.appendChild(s);
+             });
+           }
+ 
+           const bodyContent = doc.body ? doc.body.innerHTML : html;
+           container.innerHTML = bodyContent;
+ 
+           // 重新执行 body 中的脚本
+           const scripts = doc.body ? doc.body.querySelectorAll('script') : [];
+           scripts.forEach(orig => {
+             const s = document.createElement('script');
+             [...orig.attributes].forEach(attr => {
+               if (attr.name === 'src') {
+                 s.src = new URL(attr.value, src).toString();
+               } else {
+                 s.setAttribute(attr.name, attr.value);
+               }
+             });
+             s.textContent = orig.textContent || '';
+             document.body.appendChild(s);
+           });
+ 
+         } catch (err) {
+           container.innerHTML = '<p style="color:#d32f2f;">加载失败：' + String(err) + '</p>';
+         }
+       }
+ 
+       function navigate(path) {
+         const handler = routes[path];
+         if (handler) {
+           handler();
+         } else {
+           clearContainer();
+         }
+       }
+ 
+       function onLinkClick(e) {
+         const a = e.target.closest('a');
+         if (!a) return;
+         const url = new URL(a.href, window.location.href);
+         if (url.origin === window.location.origin && routes[url.pathname]) {
+           e.preventDefault();
+           history.pushState({}, '', url.pathname);
+           navigate(url.pathname);
+         }
+       }
+ 
+       window.addEventListener('click', onLinkClick);
+       window.addEventListener('popstate', () => navigate(window.location.pathname));
+       // 首次加载按照路径挂载
+       navigate(window.location.pathname);
+     })();
+   </script>
+</body>
+</html>
