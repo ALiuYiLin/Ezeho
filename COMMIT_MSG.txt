@@ -1,0 +1,10 @@
+重构与优化微前端主应用
+
+- 拆分生命周期到 hooks/（mainInit、navigate、start、subAppInit、subAppMount、subAppUnmount）
+- 提取通用工具到 utils/（container、state、registry、fetchHtml、injectHead、executeScripts）
+- 主入口改为 ES 模块，暴露 window.MicroMain API 并自动 start()
+- 优化路由劫持与 history 管理，支持前进/后退与站内跳转
+- 子应用加载改为 fetch + parse，统一注入 head 资源与执行 body 脚本
+- 迁移 main/* 到项目根（index.html、index.js），更新脚本与导入路径
+- 修正子应用返回主应用链接为 "/"，保证根路径导航一致
+- 预览验证 / 与 /app1、/app2 挂载与路由无异常

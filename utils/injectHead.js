@@ -1,17 +1,25 @@
-export function injectHeadResources(head, baseUrl) {
-  if (!head) return;
-  head.querySelectorAll('link[rel="stylesheet"]').forEach(link => {
-    const href = new URL(link.getAttribute('href'), baseUrl).toString();
-    if (!document.querySelector(`link[rel="stylesheet"][href="${href}"]`)) {
-      const l = document.createElement('link');
-      l.rel = 'stylesheet';
-      l.href = href;
-      document.head.appendChild(l);
-    }
-  });
+import { fetchHtml } from './fetchHtml.js'
+
+export async function injectHeadResources(head, baseUrl, targetRoot) {
+  if (!head || !targetRoot) return;
+  const absBase = new URL(baseUrl, window.location.origin);
+  // Inline <style>
   head.querySelectorAll('style').forEach(style => {
     const s = document.createElement('style');
     s.textContent = style.textContent;
-    document.head.appendChild(s);
+    targetRoot.appendChild(s);
   });
+  // External stylesheets: fetch and inline into shadow root
+  const links = head.querySelectorAll('link[rel="stylesheet"]');
+  for (const link of links) {
+    const href = new URL(link.getAttribute('href'), absBase).toString();
+    try {
+      const cssText = await fetchHtml(href);
+      const styleEl = document.createElement('style');
+      styleEl.textContent = cssText;
+      targetRoot.appendChild(styleEl);
+    } catch (e) {
+      console.error('Failed to load stylesheet', href, e);
+    }
+  }
 }

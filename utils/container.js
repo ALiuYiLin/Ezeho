@@ -1,4 +1,4 @@
-import { state, setContainer } from './state.js';
+import { state, setContainer } from './state.js'
 
 export function ensureContainer() {
   let c = state.container;
@@ -10,6 +10,14 @@ export function ensureContainer() {
     setContainer(c);
   }
   return c;
+}
+
+export function ensureShadowRoot() {
+  const c = ensureContainer();
+  if (!c.shadowRoot) {
+    c.attachShadow({ mode: 'open' });
+  }
+  return c.shadowRoot;
 }
 
 export function unmountContainer() {
